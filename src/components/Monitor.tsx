@@ -18,9 +18,19 @@ const TAX_CLASSIFICATIONS: Array<{ value: TaxClassification; label: string }> = 
 ];
 
 const TEST_STATES: TestState[] = ["PASS", "FAIL", "REVIEW", "NOT_ASSESSED"];
+const APP_VERSION = "0.3.1";
 
-function formatMoney(value: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0, notation: Math.abs(value) >= 1_000_000 ? "compact" : "standard" }).format(value);
+function formatMoney(value: number, currency?: string): string {
+  const notation = Math.abs(value) >= 1_000_000 ? "compact" : "standard";
+  if (currency) {
+    try {
+      return new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0, notation }).format(value);
+    } catch {
+      // Fall through to a plain number if a non-standard currency label is supplied.
+    }
+  }
+  const formatted = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0, notation }).format(value);
+  return currency ? `${formatted} ${currency}` : formatted;
 }
 
 function pct(value: number): string {
@@ -147,7 +157,7 @@ export function Monitor() {
     <main className="page-shell">
       <header className="page-header">
         <div>
-          <div className="eyebrow">RSM TAX TECHNOLOGY - INTERNAL CONCEPT</div>
+          <div className="eyebrow">RSM TAX TECHNOLOGY - INTERNAL CONCEPT | PARSER {APP_VERSION}</div>
           <h1>Participation Exemption Monitor</h1>
           <p>Upload Excel workbook - recognise structure and trial balances - review classifications - calculate - export evidence.</p>
         </div>
@@ -209,7 +219,7 @@ export function Monitor() {
                     <tr key={sheet.sheetName}>
                       <td><strong>{sheet.sheetName}</strong></td>
                       <td>{sheet.role.replace("_", " ")}</td>
-                      <td>{sheet.headerRow ? `Row ${sheet.headerRow}` : "-"}</td>
+                      <td>{sheet.headerRow ? (sheet.headerDepth && sheet.headerDepth > 1 ? `Rows ${sheet.headerRow}-${sheet.headerRow + sheet.headerDepth - 1}` : `Row ${sheet.headerRow}`) : "-"}</td>
                       <td>{sheet.fields.map((field) => field.field).join(", ") || "No structured table detected"}</td>
                       <td>{Math.round(sheet.confidence * 100)}%</td>
                     </tr>
@@ -296,10 +306,10 @@ export function Monitor() {
                         <div className="bar"><div className="bar-operating" style={{ width: `${Math.max(0, 100 - selected.upperBoundRatio * 100)}%` }} /><div className="bar-review" style={{ width: `${Math.max(0, (selected.upperBoundRatio - selected.confirmedRatio) * 100)}%` }} /><div className="bar-risk" style={{ width: `${Math.max(0, selected.confirmedRatio * 100)}%` }} /></div>
                         <div className="legend"><span><i className="dot operating" />Other assets</span><span><i className="dot review-dot" />Potential/review</span><span><i className="dot risk-dot" />Confirmed low-tax</span></div>
                         <dl className="metrics">
-                          <div><dt>Relevant assets</dt><dd>{formatMoney(selected.totalRelevantAssets, importResult.reportingCurrency)}</dd></div>
-                          <div><dt>Confirmed low-tax</dt><dd>{formatMoney(selected.confirmedLowTaxed, importResult.reportingCurrency)}</dd></div>
-                          <div><dt>Potential free investment</dt><dd>{formatMoney(selected.potentialFreeInvestments, importResult.reportingCurrency)}</dd></div>
-                          <div><dt>Manual review amount</dt><dd>{formatMoney(selected.unresolvedReview, importResult.reportingCurrency)}</dd></div>
+                          <div><dt>Relevant assets</dt><dd>{formatMoney(selected.totalRelevantAssets, selected.currency ?? importResult.reportingCurrency)}</dd></div>
+                          <div><dt>Confirmed low-tax</dt><dd>{formatMoney(selected.confirmedLowTaxed, selected.currency ?? importResult.reportingCurrency)}</dd></div>
+                          <div><dt>Potential free investment</dt><dd>{formatMoney(selected.potentialFreeInvestments, selected.currency ?? importResult.reportingCurrency)}</dd></div>
+                          <div><dt>Manual review amount</dt><dd>{formatMoney(selected.unresolvedReview, selected.currency ?? importResult.reportingCurrency)}</dd></div>
                         </dl>
                         <div className="test-list">
                           <div><span>Participation (5%)</span><b className={statusClass(selected.participationTest)}>{selected.participationTest}</b></div>
@@ -322,7 +332,7 @@ export function Monitor() {
                         <tbody>
                           {selected.contributions.slice(0, 100).map((detail, index) => (
                             <tr key={`${detail.sourceEntityId}-${detail.glAccount}-${index}`}>
-                              <td>{detail.sheetName} row {detail.rowNumber}</td><td>{detail.sourceEntityName}</td><td className="mono">{detail.glAccount}</td><td>{detail.description}</td><td className="number">{formatMoney(detail.attributedValue, importResult.reportingCurrency)}</td><td>{detail.taxClassification.replaceAll("_", " ")}</td><td className="signals">{detail.path.join(" > ")} {detail.ruleNotes.join(" ")}</td>
+                              <td>{detail.sheetName} row {detail.rowNumber}</td><td>{detail.sourceEntityName}</td><td className="mono">{detail.glAccount}</td><td>{detail.description}</td><td className="number">{formatMoney(detail.attributedValue, detail.currency ?? selected.currency ?? importResult.reportingCurrency)}</td><td>{detail.taxClassification.replaceAll("_", " ")}</td><td className="signals">{detail.path.join(" > ")} {detail.ruleNotes.join(" ")}</td>
                             </tr>
                           ))}
                         </tbody>

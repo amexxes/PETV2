@@ -1,3 +1,5 @@
+import { stripCurrencyDecorators } from "./currency";
+
 export function normalizeText(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -47,21 +49,72 @@ export function similarity(aRaw: unknown, bRaw: unknown): number {
   return Math.max(jaccard * 0.65 + edit * 0.35, edit * 0.75);
 }
 
+function normalizeSeparators(value: string): string | null {
+  const commaPositions = [...value.matchAll(/,/g)].map((match) => match.index ?? -1);
+  const dotPositions = [...value.matchAll(/\./g)].map((match) => match.index ?? -1);
+
+  if (commaPositions.length && dotPositions.length) {
+    const decimalSeparator = commaPositions.at(-1)! > dotPositions.at(-1)! ? "," : ".";
+    const thousandsSeparator = decimalSeparator === "," ? "." : ",";
+    const withoutThousands = value.replaceAll(thousandsSeparator, "");
+    const decimalIndex = withoutThousands.lastIndexOf(decimalSeparator);
+    return `${withoutThousands.slice(0, decimalIndex).replaceAll(decimalSeparator, "")}.${withoutThousands.slice(decimalIndex + 1)}`;
+  }
+
+  const separator = commaPositions.length ? "," : dotPositions.length ? "." : null;
+  if (!separator) return value;
+
+  const parts = value.split(separator);
+  if (parts.length > 2) {
+    const allThousands = parts.slice(1).every((part) => part.length === 3);
+    if (allThousands) return parts.join("");
+    const decimal = parts.pop()!;
+    return `${parts.join("")}.${decimal}`;
+  }
+
+  const [integer, fraction = ""] = parts;
+  if (!fraction) return integer;
+  const looksLikeThousands = fraction.length === 3 && integer.length > 0 && integer.length <= 3 && integer !== "0";
+  return looksLikeThousands ? `${integer}${fraction}` : `${integer}.${fraction}`;
+}
+
 export function parseNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value instanceof Date) return null;
+
   const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const negativeByParentheses = /^\(.*\)$/.test(raw);
-  const cleaned = raw
-    .replace(/[€$£¥\s]/g, "")
-    .replace(/^\(|\)$/g, "")
-    .replace(/\.(?=\d{3}(\D|$))/g, "")
-    .replace(/,(?=\d{3}(\D|$))/g, "")
-    .replace(/,(\d{1,6})$/, ".$1")
-    .replace(/%$/, "");
-  const parsed = Number(cleaned);
+  if (!raw || raw === "-" || raw === "—") return null;
+
+  const negativeByParentheses = /^\s*\(.*\)\s*$/.test(raw);
+  const negativeByTrailingMinus = /-\s*$/.test(raw);
+  const negativeByCredit = /\bCR\b/i.test(raw);
+
+  let cleaned = stripCurrencyDecorators(raw)
+    .replace(/^\s*\(|\)\s*$/g, "")
+    .replace(/\b(?:CR|DR)\b/gi, "")
+    .replace(/%\s*$/g, "")
+    .replace(/[\s'’]/g, "")
+    .replace(/-$/, "")
+    .trim();
+
+  if (!cleaned || /[A-Za-z]/.test(cleaned)) return null;
+  if (!/^[+-]?(?:\d+(?:[.,]\d+)*|[.,]\d+)$/.test(cleaned)) return null;
+
+  let sign = 1;
+  if (cleaned.startsWith("-")) {
+    sign = -1;
+    cleaned = cleaned.slice(1);
+  } else if (cleaned.startsWith("+")) {
+    cleaned = cleaned.slice(1);
+  }
+
+  const normalized = normalizeSeparators(cleaned);
+  if (!normalized) return null;
+  const parsed = Number(normalized);
   if (!Number.isFinite(parsed)) return null;
-  return negativeByParentheses ? -parsed : parsed;
+
+  if (negativeByParentheses || negativeByTrailingMinus || negativeByCredit) sign = -1;
+  return parsed * sign;
 }
 
 export function parsePercentage(value: unknown): number | null {

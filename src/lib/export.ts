@@ -8,6 +8,7 @@ export async function exportWorkbook(importResult: ImportResult, calculation: Ca
   const summary = calculation.calculations.map((item) => ({
     "Analysis mode": item.analysisMode === "group_structure" ? "Group participation analysis" : "Standalone entity asset analysis",
     "Entity / participation": item.entityName,
+    Currency: item.currency ?? importResult.reportingCurrency ?? "",
     "Direct ownership %": item.ownershipProvided ? item.directOwnershipPct : "Not provided",
     "Participation test": item.participationTest,
     "Motive test": item.motiveTest,
@@ -28,7 +29,7 @@ export async function exportWorkbook(importResult: ImportResult, calculation: Ca
   const recognition = importResult.sheets.map((sheet) => ({
     Sheet: sheet.sheetName,
     Role: sheet.role,
-    "Header row": sheet.headerRow ?? "",
+    "Header row(s)": sheet.headerRow ? (sheet.headerDepth && sheet.headerDepth > 1 ? `${sheet.headerRow}-${sheet.headerRow + sheet.headerDepth - 1}` : sheet.headerRow) : "",
     "Rows detected": sheet.rowCount,
     "Columns detected": sheet.columnCount,
     "Recognition confidence %": Math.round(sheet.confidence * 100),
@@ -68,6 +69,7 @@ export async function exportWorkbook(importResult: ImportResult, calculation: Ca
       "Source row": detail.rowNumber,
       "GL account": detail.glAccount,
       Description: detail.description,
+      Currency: detail.currency ?? calculationItem.currency ?? importResult.reportingCurrency ?? "",
       "Source value": detail.sourceValue,
       "Ownership factor %": detail.ownershipFactor * 100,
       "Attributed value": detail.attributedValue,

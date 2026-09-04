@@ -1,45 +1,47 @@
-# Participation Exemption Monitor
+# Participation Exemption Monitor - parser 0.3.1
 
-Single-page internal MVP for Dutch participation-exemption monitoring from flexible Excel workbooks.
+Single-page browser-based MVP for Dutch participation-exemption monitoring from flexible Excel workbooks.
 
-## Version 0.2 changes
+## What changed in parser 0.3.1
 
-This version was revised after testing a real financial-statement workbook that contained one entity, a detailed trial balance, multiple amount/currency columns and no group-structure table.
+- A group-structure sheet is optional for standalone entity asset analysis.
+- `BU`, business-unit and company-code fields can identify an entity.
+- The legal entity name can be taken from a workbook title on another sheet.
+- Repeated missing-entity errors are grouped instead of listed once per TB row.
+- All worksheets are scanned for structured tables.
+- Header rows may start lower in a sheet and may span up to three rows.
+- Small merged header cells are expanded before recognition.
+- More than one trial-balance table on a worksheet can be read.
+- Column order may differ.
+- Separate debit and credit columns are supported.
+- Reporting/base/functional-currency amounts are preferred over transaction-currency amounts.
+- Standard ISO currency codes are supported, together with common currency labels and symbols.
+- International number formats such as `1,234.56`, `1.234,56` and `(1,234.56)` are supported.
+- Signed rows are retained so clearing entries, FX rows and accumulated depreciation are netted rather than grossed up.
+- The page visibly shows `PARSER 0.3.1` so the deployed version can be checked.
 
-- A missing ownership sheet is no longer automatically fatal.
-- The tool can infer standalone entities from fields such as `BU`, `Business Unit`, `Entity ID` or workbook titles.
-- A full legal name can be linked to an entity code found elsewhere in the workbook.
-- Standalone entity asset analysis is clearly separated from full group participation analysis.
-- Ownership and the 5% participation test remain `NOT_ASSESSED` when no ownership data is supplied.
-- Reporting/base currency pairs are preferred over transaction-currency amounts.
-- Financial-statement grouping fields such as `Grouping`, `Subgrouping1` and `Subgrouping2` are used as classification context.
-- P&L, liability and equity rows are excluded from the asset calculation.
-- Signed TB rows are netted. Clearing entries, FX rows and accumulated depreciation are not grossed up.
-- Missing-entity errors are grouped instead of repeated for every TB row.
-- Non-table worksheets are no longer shown with misleading false header detections.
-- Calculation lineage includes the original worksheet and row number.
+## Verified against the supplied workbook
 
-## What the application does
+For `C0450 - FS 2026 July 2026.xlsx`, the parser returns:
 
-- Public Vercel website; no login.
-- Reads the selected Excel workbook locally in the browser.
-- Scans every worksheet.
-- Detects structure, entity, TB, amount, currency and classification fields using aliases, fuzzy matching and data patterns.
-- Reuses manually confirmed mappings in browser localStorage.
-- Calculates recursive ownership-weighted asset results when a structure is available.
-- Calculates standalone entity asset composition when ownership is absent.
-- Keeps confirmed low-taxed items, potential investments and manual-review items separate.
-- Exports results, recognition, entities, mappings, checks and source-level calculation details to Excel.
+- 4 worksheets read;
+- 1 standalone entity;
+- 356 trial-balance lines;
+- HKD as reporting currency;
+- no calculation blockers;
+- July 2026 as reporting period.
 
-## Deployment through GitHub and Vercel
+## Update through GitHub and Vercel
 
-1. Upload the project files to a GitHub repository.
-2. Import the repository into Vercel.
-3. Keep the Framework Preset as **Next.js**.
-4. Deploy.
+1. Extract the update ZIP on your computer.
+2. Upload the extracted files and folders into the root of the existing GitHub repository.
+3. Replace files when GitHub asks.
+4. Commit the changes.
+5. Check that Vercel deploys that new commit to Production.
+6. Open the site and confirm the header shows `PARSER 0.3.1`.
 
-No database, Blob store or environment variables are required for this browser-only version.
+Do not upload the ZIP itself as a file in the repository. Vercel will not replace the application source from an unopened ZIP.
 
-## Important limitation
+## Limits
 
-A workbook without ownership data can support an entity-level asset analysis, but not a complete participation conclusion. Ownership, indirect subsidiaries, motive, subject-to-tax and unresolved tax classifications must still be provided or reviewed where relevant.
+The parser covers common financial-statement and trial-balance layouts, but no rule-based parser can safely understand every possible workbook automatically. If essential fields cannot be identified with sufficient confidence, the tool stops rather than guessing. A later version should add an on-screen fallback where the user can select the correct sheet, header row and columns.

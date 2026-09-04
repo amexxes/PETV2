@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "../calculation";
-import type { ImportResult, TrialBalanceLine } from "../types";
+import type { EntityRecord, ImportResult, TrialBalanceLine } from "../types";
+
+function entity(id: string, parentId: string | null, ownershipPct = 100): EntityRecord {
+  return {
+    id,
+    name: id,
+    parentId,
+    parentName: parentId,
+    ownershipPct,
+    ownershipProvided: parentId !== null,
+    source: "structure",
+    currency: "EUR",
+  };
+}
 
 function line(entityId: string, value: number, taxClassification: TrialBalanceLine["taxClassification"], id: string): TrialBalanceLine {
   return {
@@ -20,7 +33,7 @@ function line(entityId: string, value: number, taxClassification: TrialBalanceLi
     signals: [],
     sourceClassification: "manual",
     isAsset: true,
-    unresolved: taxClassification === "manual_review",
+    unresolved: taxClassification === "manual_review" || taxClassification === "potential_free_investment",
   };
 }
 
@@ -29,17 +42,15 @@ function base(lines: TrialBalanceLine[], childOwnership = 100): ImportResult {
     fileName: "test.xlsx",
     fileSize: 1,
     sheets: [],
-    entities: [
-      { id: "NL", name: "NL HoldCo", parentId: null, ownershipPct: 100 },
-      { id: "A", name: "A", parentId: "NL", ownershipPct: 100 },
-      { id: "B", name: "B", parentId: "A", ownershipPct: childOwnership },
-    ],
+    entities: [entity("NL", null), entity("A", "NL"), entity("B", "A", childOwnership)],
     lines,
     fairValueAdjustments: [],
     taxData: [],
     errors: [],
     warnings: [],
     reportingCurrency: "EUR",
+    analysisMode: "group_structure",
+    structureDetected: true,
   };
 }
 

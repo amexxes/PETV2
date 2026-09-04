@@ -51,6 +51,7 @@ function ownAggregate(entity: EntityRecord, lines: TrialBalanceLine[], path: str
         rowNumber: line.rowNumber,
         glAccount: line.glAccount,
         description: line.description,
+        currency: line.currency,
         sourceValue: line.value,
         ownershipFactor: 1,
         attributedValue: 0,
@@ -80,6 +81,7 @@ function ownAggregate(entity: EntityRecord, lines: TrialBalanceLine[], path: str
       rowNumber: line.rowNumber,
       glAccount: line.glAccount,
       description: line.description,
+      currency: line.currency,
       sourceValue: line.value,
       ownershipFactor: 1,
       attributedValue: value,
@@ -234,6 +236,8 @@ export function calculate(importResult: ImportResult): CalculationResult {
       const subjectToTaxTest = tax?.subjectToTaxTest ?? (tax?.taxRate !== undefined ? "REVIEW" : "NOT_ASSESSED");
       const assetTest = testFromRatio(confirmedRatio, upperBoundRatio, aggregate.unresolvedCount);
       const thirtySeventyApplied = aggregate.contributions.some((contribution) => contribution.ruleNotes.some((note) => note.startsWith("30/70 entity-level")));
+      const currencies = new Set(aggregate.contributions.map((contribution) => contribution.currency).filter((value): value is string => Boolean(value)));
+      const currency = importResult.reportingCurrency ?? (currencies.size === 1 ? [...currencies][0] : target.currency);
 
       calculations.push({
         entityId: target.id,
@@ -241,6 +245,7 @@ export function calculate(importResult: ImportResult): CalculationResult {
         directOwnershipPct: target.ownershipPct,
         ownershipProvided: target.ownershipProvided,
         analysisMode: importResult.analysisMode,
+        currency,
         totalRelevantAssets: denominator,
         confirmedLowTaxed: aggregate.confirmedLowTaxed,
         potentialFreeInvestments: aggregate.potential,

@@ -9,6 +9,9 @@ export type FieldKey =
   | "glAccount"
   | "glDescription"
   | "balance"
+  | "debit"
+  | "credit"
+  | "debitCredit"
   | "accountCategory"
   | "balanceSheetSide"
   | "fairValue"
@@ -55,6 +58,9 @@ export interface SheetAnalysis {
   rowCount: number;
   columnCount: number;
   headerRow: number | null;
+  headerDepth?: number;
+  tableIndex?: number;
+  tableCount?: number;
   role: SheetRole;
   confidence: number;
   fields: DetectedField[];
@@ -143,6 +149,7 @@ export interface EntityCalculation {
   directOwnershipPct: number;
   ownershipProvided: boolean;
   analysisMode: AnalysisMode;
+  currency?: string;
   totalRelevantAssets: number;
   confirmedLowTaxed: number;
   potentialFreeInvestments: number;
@@ -166,6 +173,7 @@ export interface CalculationContribution {
   rowNumber: number;
   glAccount: string;
   description: string;
+  currency?: string;
   sourceValue: number;
   ownershipFactor: number;
   attributedValue: number;
